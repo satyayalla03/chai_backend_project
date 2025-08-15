@@ -9,7 +9,8 @@ const storage = multer.diskStorage({
 
   // 2️⃣ Filename function
   filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname); 
+    cb(null, file.originalname); 
+    // cb(null, Date.now() + '-' + file.originalname); 
     // Example: 1692015671000-myphoto.jpg
   }
 
