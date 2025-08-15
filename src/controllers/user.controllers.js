@@ -4,6 +4,27 @@ import {User} from "../models/user.model.js";
 import {uploadOnCloudinary} from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+// here User is an object in mongodB
+
+const generateAccessAndRefreshTokens = async (userId) => {
+    try {
+        // finds user in User dB by id,
+        // generates access and refresh tokens
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        // save refreshtoken in db
+        user.refreshToken = refreshToken
+        await user.save({validateBeforeSave: false})
+
+        return {accessToken, refreshToken}
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating refresh and access tokens")
+    }
+}
+
 /*
 const registerUser = asyncHandler(async (req, res) => {
     res.status(200).json({
@@ -32,7 +53,7 @@ const registerUser = asyncHandler(async(req, res) => {
    
     // 1
     const {fullName, email, username, password} = req.body;
-    console.log("email: ", email);
+    // console.log("email: ", email);
     
     // 2. validation
 
@@ -113,4 +134,87 @@ const registerUser = asyncHandler(async(req, res) => {
 
 })
 
-export {registerUser}
+const loginUser = asyncHandler( async (req, res) => {
+    // 1. req.body for data
+    // 2. username or email validation
+    // 3. find the user, if user there, then login, else error
+    // 4. login before check password
+    // 5. access and refresh token
+    // 6. send cookie
+
+    // 1
+    const {email, username, password} = req.body
+
+    // if none of them are empty, throw err, since we req something
+    if( [email, username].every((field) => { field?.trim() === "" }) )
+    {
+        throw new ApiError(400, "username or email is required")
+    }
+
+    const user = await User.findOne({
+        $or: [{username}, {email}]
+    })
+
+    if(!user){
+        throw new ApiError(404, "user does not exist");
+    }
+
+    // checking password, since bcrypt time lagega, so await
+    const isPasswordValid = await user.isPasswordCorrect(password);
+
+    if(!isPasswordValid){
+        throw new ApiError(401, "Invalid user credentials");
+    }
+
+    // if pwd correct, generate access, refresh tokens
+    const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id)
+
+    const loggedInUser = User.findById(user._id).select(
+        "-password -refreshToken" 
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res.status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                user: loggedInUser, accessToken, refreshToken
+            },
+            "User logged in succesfully"
+        )
+    )
+
+})
+
+const logoutUser = asyncHandler(async(req, res) => {
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                refreshToken: undefined
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res.status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, "User logged out"))
+})
+
+export {registerUser, loginUser, logoutUser}
