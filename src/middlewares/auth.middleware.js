@@ -3,6 +3,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken"
 import {User} from "../models/user.model.js"
 
+// to check whether the user is logged-in or not(by verifying their JWT)
+
 export const verifyJWT = asyncHandler(async(req, _, next) => {
     try {
         const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ","")

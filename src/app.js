@@ -4,25 +4,34 @@ import cookieParser from "cookie-parser";
 
 const app = express()
 
+
 app.use(cors({
     origin: process.env.CORS_ORIGIN,
     credentials: true
 }))
 
 // app.use(...) in Express means 
-// "use this middleware for every request".
+// "run this middleware before we run any request".
 
 // app.use(express.json());
 // ✅ Means: "For every incoming request, 
 // run express.json() first so I can read JSON in req.body".
 
 
+/*
+
+express.json → lets backend read JSON.
+express.urlencoded → lets backend read form data.
+express.static → serves public files like images/styles.
+cookieParser → lets backend read cookies sent by browser.
+*/
+
 app.use(express.json({limit: "16kb"}))
 app.use(express.urlencoded({extended: true, limit: "16kb"}))
 app.use(express.static("public"))
 app.use(cookieParser())
 
-// routes import
+// routes import to handle requests
 
 import userRouter from './routes/user.routes.js'
 
